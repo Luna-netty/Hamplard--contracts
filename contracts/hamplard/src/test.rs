@@ -2145,6 +2145,58 @@ fn test_init_cannot_be_called_twice() {
 }
 
 // ============================================================
+// ISSUE #424: INIT EMITS `initialized` EVENT
+// ============================================================
+
+#[test]
+fn test_init_emits_initialized_event_once() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(HamplardContract, ());
+    let client = HamplardContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let sec_admin = Address::generate(&env);
+    let treasury = Address::generate(&env);
+
+    client.init(
+        &admin, &sec_admin, &treasury, &20u32, &50u32, &1000u32, &17_280u32,
+    );
+
+    let mut count = 0u32;
+    let mut payload: Option<Val> = None;
+    for (contract, topics, data) in env.events().all().iter() {
+        if contract != contract_id {
+            continue;
+        }
+        let sym: Symbol = topics.get(0).unwrap().try_into_val(&env).unwrap();
+        if sym == Symbol::new(&env, "initialized") {
+            let topic_admin: Address = topics.get(1).unwrap().try_into_val(&env).unwrap();
+            assert_eq!(topic_admin, admin);
+            count += 1;
+            payload = Some(data);
+        }
+    }
+    assert_eq!(count, 1, "initialized must be emitted exactly once");
+
+    let (ev_admin, ev_sec_admin, ev_treasury, ev_fee, ev_max_courses, ev_refund_window): (
+        Address,
+        Address,
+        Address,
+        u32,
+        u32,
+        u32,
+    ) = payload.unwrap().try_into_val(&env).unwrap();
+    assert_eq!(ev_admin, admin);
+    assert_eq!(ev_sec_admin, sec_admin);
+    assert_eq!(ev_treasury, treasury);
+    assert_eq!(ev_fee, 20);
+    assert_eq!(ev_max_courses, 50);
+    assert_eq!(ev_refund_window, 1000);
+}
+
+// ============================================================
 // ISSUE #2: TOKEN WHITELIST
 // ============================================================
 

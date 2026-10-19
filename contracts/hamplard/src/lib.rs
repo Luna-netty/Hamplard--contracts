@@ -693,6 +693,7 @@ impl HamplardContract {
 
     /// Initialise the contract.
     /// Called once by the deployer immediately after deployment.
+    /// Emits `initialized` so indexers can discover the initial configuration.
     ///
     /// # Arguments
     /// - `admin`                    — admin address (approves courses, issues certificates)
@@ -766,6 +767,18 @@ impl HamplardContract {
         env.storage()
             .instance()
             .set(&DataKey::InitLedger, &env.ledger().sequence());
+
+        env.events().publish(
+            (Symbol::new(&env, "initialized"), admin.clone()),
+            (
+                admin,
+                secondary_admin,
+                treasury,
+                default_fee_pct,
+                max_courses_per_instructor,
+                refund_window_ledgers,
+            ),
+        );
     }
 
     /// Instructor or admin configures an optional ledger sequence when enrollment opens.
